@@ -1,3 +1,5 @@
+CREATE DATABASE student_management;
+
 CREATE TABLE student (
     Id INT(100) NOT NULL AUTO_INCREMENT,
     FirstName VARCHAR(500) NOT NULL,
