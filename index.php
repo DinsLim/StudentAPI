@@ -4,19 +4,30 @@ include "config/db.php";
 header("Content-Type: application/json");
 $requestMethod = $_SERVER["REQUEST_METHOD"];
 
+// Authentication check
+$apiKey = $_SERVER['HTTP_X_API_KEY'] ?? '';
+if ($apiKey !== 'it-311') {
+    http_response_code(401);
+    echo json_encode(["message" => "Unauthorized: Invalid API key"]);
+    exit();
+}
 
 $request = isset($_GET['request']) ? explode("/", trim($_GET['request'], "/")) : [];
 $studentId = isset($_GET["id"]) ? trim($_GET["id"], "/") : null;
 
 switch($requestMethod) {
     case 'POST':
-        createStudent();
+        if (isset($_GET['action']) && $_GET['action'] == 'addCourse') {
+            addCourse();
+        } else {
+            createStudent();
+        }
         break;
     case 'GET':
         if ($studentId) {
             getStudent($studentId);
-        } elseif (isset($_GET['course'])) {
-            filterStudentsByCourse($_GET['course']);
+        } elseif (isset($_GET['CourseId'])) {
+            filterStudentsByCourse($_GET['CourseId']);
         } elseif (isset($_GET['search'])) {
             searchStudents($_GET['search']);
         } else {
@@ -172,10 +183,10 @@ function deleteStudent($id) {
     }
 }
 
-function filterStudentsByCourse($course) {
+function filterStudentsByCourse($courseId) {
     global $connection;
-    $course = mysqli_real_escape_string($connection, $course);
-    $sql = "SELECT * FROM student WHERE Course = '$course'";
+    $courseId = mysqli_real_escape_string($connection, $courseId);
+    $sql = "SELECT s.* FROM student s JOIN courses c ON s.Course = c.CourseName WHERE c.Id = '$courseId'";
     $result = mysqli_query($connection, $sql);
     
     if($result) {
@@ -185,11 +196,7 @@ function filterStudentsByCourse($course) {
             echo json_encode(["message" => "No students found for the specified course"]);
         } else {
             $count = count($students);
-            if ($count == 1) {
-                echo json_encode(["message" => "1 student found", "data" => $students[0]]);
-            } else {
-                echo json_encode(["message" => "$count students found", "data" => $students]);
-            }
+            echo json_encode(["message" => "$count student(s) found", "data" => $students]);
         }
     } else {
         http_response_code(500);
@@ -210,14 +217,43 @@ function searchStudents($query) {
             echo json_encode(["message" => "No students found matching the search query"]);
         } else {
             $count = count($students);
-            if ($count == 1) {
-                echo json_encode(["message" => "1 student found", "data" => $students[0]]);
-            } else {
-                echo json_encode(["message" => "$count students found", "data" => $students]);
-            }
+            echo json_encode(["message" => "$count student(s) found", "data" => $students]);
         }
     } else {
         http_response_code(500);
         echo json_encode(["message" => "Error searching for students"]);
     }
 }
+
+function addCourse() {
+    global $connection;
+    $data = json_decode(file_get_contents("php://input"), true);
+    
+    $courseName = mysqli_real_escape_string($connection, $data['CourseName']);
+
+    if(!empty($courseName)) {
+        // Check for duplicates
+        $checkDuplicate = "SELECT * FROM courses WHERE CourseName = '$courseName'";
+        $result = mysqli_query($connection, $checkDuplicate);
+        
+        if(mysqli_num_rows($result) > 0) {
+            http_response_code(409);
+            echo json_encode(["message" => "A course with this name already exists"]);
+            return;
+        }
+        
+        $sql = "INSERT INTO courses (CourseName) VALUES ('$courseName')";
+        
+        if(mysqli_query($connection, $sql)) {
+            http_response_code(201);
+            echo json_encode(["message" => "Course created successfully"]);
+        } else {
+            http_response_code(500);
+            echo json_encode(["message" => "Error creating course"]);
+        }
+    } else {
+        http_response_code(400);
+        echo json_encode(["message" => "Course name is required"]);
+    }
+}
+
