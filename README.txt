@@ -39,7 +39,7 @@ Student Management API is a system designed to manage student records in a small
 
 ## Using the API
 
-1. Open a tool like Postman or use cURL for API requests.
+1. Open a tool like Postman for API requests.
 2. Set the `X-API-Key` header to 'it-311' for all requests.
 3. Use the appropriate HTTP method (GET, POST, PUT, DELETE) for each operation.
 4. Enter the URL of your file (e.g., `http://localhost/StudentAPI/index.php`).
